@@ -1,13 +1,16 @@
 #[allow(dead_code)]
+mod adj_matrix;
+#[allow(dead_code)]
 mod graph;
 #[allow(dead_code)]
 mod utils;
 
-use crate::graph::{AdjMatrixGraph, Graph};
+use crate::adj_matrix::AdjMatrixGraph;
+use crate::graph::Graph;
 
 fn main() {
     let mut g = AdjMatrixGraph::<i32>::new();
-    let max = 10000;
+    let max = 100;
 
     for i in 1..=max {
         for j in i - 3..=i + 3 {
