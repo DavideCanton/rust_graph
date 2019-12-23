@@ -9,12 +9,15 @@ use crate::adj_matrix::AdjMatrixGraph;
 use crate::graph::Graph;
 
 fn main() {
-    let mut g = AdjMatrixGraph::<i32>::new();
-    let max = 100;
+    let mut g = AdjMatrixGraph::<u32>::new();
+    let max = 10;
 
-    for i in 1..=max {
-        for j in i - 3..=i + 3 {
-            if j >= 1 && j <= max {
+    for i in 1u32..=max {
+        let i = i.saturating_sub(3);
+        let i2 = i.saturating_add(3);
+
+        for j in i..=i2 {
+            if j >= 1 && j <= max && i != j {
                 g.add_edge(i, j);
             }
         }
@@ -24,16 +27,30 @@ fn main() {
     println!("Node count: {}", g.node_count());
     println!("Edge count: {}", g.edge_count());
 
-    let from = 1;
+    println!("{}", g);
+
+    let from = 0;
     let to = max;
-    let path = utils::dfs(&g, &from, &to);
 
-    let ps = path
-        .iter()
-        .map(|&p| p.to_string())
-        .collect::<Vec<_>>()
-        .join(", ");
+    let ps = match utils::dfs(&g, &from, &to) {
+        None => "No path found with dfs".to_string(),
+        Some(ps) => ps
+            .iter()
+            .map(|&p| p.to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+    };
 
-    println!("Path from {} to {}", from, to);
-    println!("{}", ps);
+    let pd = match utils::dijkstra(&g, &from, &to) {
+        None => "No path found with dijkstra".to_string(),
+        Some(pd) => pd
+            .iter()
+            .map(|&p| p.to_string())
+            .collect::<Vec<_>>()
+            .join(", "),
+    };
+
+    println!("Paths from {} to {}", from, to);
+    println!("DFS: {}", ps);
+    println!("DIJKSTRA: {}", pd);
 }
