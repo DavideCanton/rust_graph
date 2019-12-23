@@ -19,7 +19,7 @@ pub fn dfs<'a, N: Eq + Hash + Debug>(
         inner_dfs(g, &mut visited, &mut cur, to);
     }
 
-    if cur.is_empty() {
+    if cur.len() < 2 {
         None
     } else {
         Some(cur)
@@ -100,7 +100,13 @@ pub fn dijkstra<'a, N: Ord + Debug + Hash>(
         }
     }
 
-    if !preds.contains_key(to) {
+    let found_path = match preds.get(to) {
+        None => false,
+        Some((Some(_), cost)) => *cost != std::u32::MAX,
+        _ => true,
+    };
+
+    if !found_path {
         return None;
     }
 
