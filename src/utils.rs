@@ -127,6 +127,7 @@ pub fn dijkstra<'a, N: Ord + Debug + Hash>(
 mod tests {
     use super::*;
     use crate::adj_matrix::AdjMatrixGraph;
+    use std::borrow::Borrow;
 
     fn build_graph(n: u32, s: &str) -> impl Graph<u32> {
         let mut g = AdjMatrixGraph::new();
@@ -148,19 +149,14 @@ mod tests {
         g
     }
 
-    // TODO personally I don't like having &[&T] on the left and &[T] on the right
-    fn slice_equal<T: Eq>(s1: &[&T], s2: &[T]) -> bool {
+    fn slice_equal<T: Eq>(s1: &[impl Borrow<T>], s2: &[impl Borrow<T>]) -> bool {
         if s1.len() != s2.len() {
             return false;
         }
 
-        for (a, b) in s1.iter().zip(s2.iter()) {
-            if *a != b {
-                return false;
-            }
-        }
-
-        true
+        s1.iter()
+            .zip(s2.iter())
+            .all(|(a, b)| a.borrow() == b.borrow())
     }
 
     #[test]
@@ -183,6 +179,20 @@ mod tests {
     fn works_with_path_not_present() {
         let g = build_graph(5, "1,2|3,4|4,5");
         let p = dijkstra(&g, &1, &5);
+        assert!(p.is_none());
+    }
+
+    #[test]
+    fn works_with_nonexistant_src() {
+        let g = build_graph(5, "1,2|3,4|4,5");
+        let p = dijkstra(&g, &0, &5);
+        assert!(p.is_none());
+    }
+
+    #[test]
+    fn works_with_nonexistant_dst() {
+        let g = build_graph(5, "1,2|3,4|4,5");
+        let p = dijkstra(&g, &1, &6);
         assert!(p.is_none());
     }
 }
