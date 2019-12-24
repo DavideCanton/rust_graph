@@ -58,7 +58,7 @@ struct NodeWithDist<N: Eq + Ord>(N, u32);
 
 impl<N: Eq + Ord> Ord for NodeWithDist<N> {
     fn cmp(&self, other: &Self) -> Ordering {
-        // order is reversed because BinaryHeap returns the ma
+        // order is reversed because BinaryHeap returns the max
         other.1.cmp(&self.1).then_with(|| self.0.cmp(&other.0))
     }
 }
