@@ -58,6 +58,7 @@ struct NodeWithDist<N: Eq + Ord>(N, u32);
 
 impl<N: Eq + Ord> Ord for NodeWithDist<N> {
     fn cmp(&self, other: &Self) -> Ordering {
+        // order is reversed because BinaryHeap returns the ma
         other.1.cmp(&self.1).then_with(|| self.0.cmp(&other.0))
     }
 }
@@ -101,8 +102,7 @@ pub fn dijkstra<'a, N: Ord + Debug + Hash>(
     }
 
     let found_path = match preds.get(to) {
-        None => false,
-        Some((Some(_), cost)) => *cost != std::u32::MAX,
+        None | Some((None, _)) => false,
         _ => true,
     };
 
@@ -121,4 +121,68 @@ pub fn dijkstra<'a, N: Ord + Debug + Hash>(
     ret.push(from);
     ret.reverse();
     Some(ret)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::adj_matrix::AdjMatrixGraph;
+
+    fn build_graph(n: u32, s: &str) -> impl Graph<u32> {
+        let mut g = AdjMatrixGraph::new();
+
+        fn parse(s: &str) -> u32 {
+            let res = s.parse();
+            res.ok().unwrap()
+        }
+
+        for i in 1..=n {
+            g.add_node(i);
+        }
+
+        for x in s.split('|') {
+            let p = x.split(',').collect::<Vec<_>>();
+            g.add_edge(parse(p[0]), parse(p[1]));
+        }
+
+        g
+    }
+
+    // TODO personally I don't like having &[&T] on the left and &[T] on the right
+    fn slice_equal<T: Eq>(s1: &[&T], s2: &[T]) -> bool {
+        if s1.len() != s2.len() {
+            return false;
+        }
+
+        for (a, b) in s1.iter().zip(s2.iter()) {
+            if *a != b {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    #[test]
+    fn works_with_path_present() {
+        let g = build_graph(5, "1,2|2,3|3,4|4,5");
+        let p = dijkstra(&g, &1, &5);
+        assert!(p.is_some());
+        assert!(slice_equal(&p.unwrap(), &[1, 2, 3, 4, 5]));
+    }
+
+    #[test]
+    fn gets_shortest_path() {
+        let g = build_graph(5, "1,2|2,3|3,4|4,5|1,3|3,5");
+        let p = dijkstra(&g, &1, &5);
+        assert!(p.is_some());
+        assert!(slice_equal(&p.unwrap(), &[1, 3, 5]));
+    }
+
+    #[test]
+    fn works_with_path_not_present() {
+        let g = build_graph(5, "1,2|3,4|4,5");
+        let p = dijkstra(&g, &1, &5);
+        assert!(p.is_none());
+    }
 }
