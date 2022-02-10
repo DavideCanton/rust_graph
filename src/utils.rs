@@ -6,6 +6,9 @@ use std::collections::HashSet;
 use std::fmt::Debug;
 use std::hash::Hash;
 
+/**
+ * Depth first search from `from` to `to`.
+ */
 pub fn dfs<'a, N: Eq + Hash + Debug>(
     g: &'a impl Graph<N>,
     from: &'a N,
@@ -69,6 +72,9 @@ impl<N: Eq + Ord> PartialOrd for NodeWithDist<N> {
     }
 }
 
+/**
+ * Dijkstra path finding from `from` to `to`.
+ */
 pub fn dijkstra<'a, N: Ord + Debug + Hash>(
     g: &'a impl Graph<N>,
     from: &'a N,

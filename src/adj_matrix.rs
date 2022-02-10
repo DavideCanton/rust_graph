@@ -4,6 +4,9 @@ use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 use std::rc::Rc;
 
+/**
+ * Adjacency matrix implementation of [`Graph`].
+ */
 pub struct AdjMatrixGraph<N: Hash + Eq + Debug> {
     nodes: HashSet<Rc<N>>,
     edges: HashMap<Rc<N>, HashSet<Rc<N>>>,
@@ -11,6 +14,9 @@ pub struct AdjMatrixGraph<N: Hash + Eq + Debug> {
 }
 
 impl<N: Hash + Eq + Debug> AdjMatrixGraph<N> {
+    /**
+     * Creates a new graph.
+     */
     pub fn new() -> Self {
         AdjMatrixGraph {
             edges: HashMap::new(),
