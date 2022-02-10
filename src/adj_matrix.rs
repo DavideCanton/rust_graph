@@ -114,10 +114,10 @@ impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
     fn iter_adj(&self, n: &N) -> Option<Box<NodeIterator<N>>> {
         fn helper<N>(v: &[Rc<N>]) -> Box<NodeIterator<N>> {
             Box::new(v.iter().map(|v| v.as_ref()))
-        };
+        }
 
-        let adjs = self.edges.get(n);
-        adjs.map(|v| helper(v.as_slice()))
+        let adjacent = self.edges.get(n);
+        adjacent.map(|v| helper(v.as_slice()))
     }
 
     fn iter_edges<'s>(&'s self) -> Box<EdgeIterator<'s, N>> {
