@@ -1,13 +1,12 @@
 use crate::graph::{EdgeIterator, Graph, NodeIterator};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
-use std::ops::Deref;
 use std::rc::Rc;
 
 pub struct AdjMatrixGraph<N: Hash + Eq + Debug> {
-    nodes: Vec<Rc<N>>,
-    edges: HashMap<Rc<N>, Vec<Rc<N>>>,
+    nodes: HashSet<Rc<N>>,
+    edges: HashMap<Rc<N>, HashSet<Rc<N>>>,
     edge_count: usize,
 }
 
@@ -15,30 +14,34 @@ impl<N: Hash + Eq + Debug> AdjMatrixGraph<N> {
     pub fn new() -> Self {
         AdjMatrixGraph {
             edges: HashMap::new(),
-            nodes: Vec::new(),
+            nodes: HashSet::new(),
             edge_count: 0,
         }
     }
 
+    fn inner_add_node(&mut self, n: N) -> Rc<N> {
+        let rc = Rc::new(n);
+        self.nodes.insert(Rc::clone(&rc));
+        self.edges.insert(Rc::clone(&rc), HashSet::new());
+        rc
+    }
+
     fn find_or_add(&mut self, n: N) -> Rc<N> {
         if !self.has_node(&n) {
-            self.add_node(n);
-            Rc::clone(self.nodes.last().unwrap())
+            self.inner_add_node(n)
         } else {
             Rc::clone(self.nodes.iter().find(|&r| **r == n).unwrap())
         }
     }
 
     fn node_ref(&self, n: &N) -> Option<Rc<N>> {
-        self.nodes.iter().find(|&x| **x == *n).map(|x| Rc::clone(x))
+        self.nodes.iter().find(|&x| **x == *n).map(Rc::clone)
     }
 }
 
 impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
     fn add_node(&mut self, n: N) {
-        let rc = Rc::new(n);
-        self.nodes.push(Rc::clone(&rc));
-        self.edges.insert(Rc::clone(&rc), Vec::new());
+        self.inner_add_node(n);
     }
 
     fn add_edge(&mut self, f: N, t: N) {
@@ -50,7 +53,7 @@ impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
         let edges = &mut self.edges;
 
         let e = edges.get_mut(&fr).unwrap();
-        e.push(tr);
+        e.insert(tr);
         self.edge_count += 1;
     }
 
@@ -59,7 +62,7 @@ impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
             return;
         }
 
-        remove_from_vec(&mut self.nodes, n);
+        self.nodes.remove(n);
         if let Some((_, v)) = self.edges.remove_entry(n) {
             self.edge_count -= v.len();
         }
@@ -67,7 +70,7 @@ impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
         let e = &mut self.edges;
         let mut to_remove = 0;
         e.iter_mut().for_each(|(_, v)| {
-            if remove_from_vec(v, n) {
+            if v.remove(n) {
                 to_remove += 1;
             }
         });
@@ -82,7 +85,7 @@ impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
         let edges = &mut self.edges;
 
         let e = edges.get_mut(f).unwrap();
-        if remove_from_vec(e, t) {
+        if e.remove(t) {
             self.edge_count -= 1;
         }
     }
@@ -112,15 +115,15 @@ impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
     }
 
     fn iter_adj(&self, n: &N) -> Option<Box<NodeIterator<N>>> {
-        fn helper<N>(v: &[Rc<N>]) -> Box<NodeIterator<N>> {
+        fn helper<N>(v: &HashSet<Rc<N>>) -> Box<NodeIterator<N>> {
             Box::new(v.iter().map(|v| v.as_ref()))
         }
 
         let adjacent = self.edges.get(n);
-        adjacent.map(|v| helper(v.as_slice()))
+        adjacent.map(helper)
     }
 
-    fn iter_edges<'s>(&'s self) -> Box<EdgeIterator<'s, N>> {
+    fn iter_edges(&self) -> Box<EdgeIterator<N>> {
         Box::new(
             self.edges
                 .iter()
@@ -175,15 +178,6 @@ impl<N: Debug + Hash + Eq> Debug for AdjMatrixGraph<N> {
             )?;
         }
         Ok(())
-    }
-}
-
-fn remove_from_vec<T: Eq, U: Deref<Target = T>>(vec: &mut Vec<U>, item: &T) -> bool {
-    if let Some(i) = vec.iter().position(|n| **n == *item) {
-        vec.remove(i);
-        true
-    } else {
-        false
     }
 }
 

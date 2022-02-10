@@ -37,12 +37,12 @@ fn inner_dfs<'a, 'b, 'c, N: Eq + Hash + Debug>(
         return true;
     }
 
-    if let Some(adj) = g.iter_adj(&from) {
-        visited.insert(&from);
+    if let Some(adj) = g.iter_adj(from) {
+        visited.insert(from);
         for a in adj {
             if !visited.contains(&a) {
-                cur.push(&a);
-                if inner_dfs(g, visited, cur, &to) {
+                cur.push(a);
+                if inner_dfs(g, visited, cur, to) {
                     return true;
                 }
                 cur.pop();
@@ -101,12 +101,8 @@ pub fn dijkstra<'a, N: Ord + Debug + Hash>(
         }
     }
 
-    let found_path = match preds.get(to) {
-        None | Some((None, _)) => false,
-        _ => true,
-    };
-
-    if !found_path {
+    let not_found_path = matches!(preds.get(to), None | Some((None, _)));
+    if not_found_path {
         return None;
     }
 
