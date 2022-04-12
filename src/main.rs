@@ -1,8 +1,6 @@
-#[allow(dead_code)]
 mod adj_matrix;
-#[allow(dead_code)]
 mod graph;
-#[allow(dead_code)]
+mod mapping;
 mod utils;
 
 use crate::adj_matrix::AdjMatrixGraph;

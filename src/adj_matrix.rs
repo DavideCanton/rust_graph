@@ -1,4 +1,7 @@
-use crate::graph::{EdgeIterator, Graph, NodeIterator};
+use crate::{
+    graph::{EdgeIterator, Graph, NodeIterator},
+    mapping::DoubleMapping,
+};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
@@ -7,10 +10,9 @@ use std::hash::Hash;
  * Adjacency matrix implementation of [`Graph`].
  */
 pub struct AdjMatrixGraph<N: Hash + Eq + Debug> {
-    identifiers: HashMap<N, u32>,
-    starting_id: u32,
-    nodes: HashSet<u32>,
-    edges: HashMap<u32, HashSet<u32>>,
+    identifiers: DoubleMapping<N>,
+    nodes: HashSet<usize>,
+    edges: HashMap<usize, HashSet<usize>>,
     edge_count: usize,
 }
 
@@ -22,40 +24,26 @@ impl<N: Hash + Eq + Debug> AdjMatrixGraph<N> {
         AdjMatrixGraph {
             edges: HashMap::new(),
             nodes: HashSet::new(),
-            identifiers: HashMap::new(),
-            starting_id: 1,
+            identifiers: DoubleMapping::new(),
             edge_count: 0,
         }
     }
 
-    fn inner_add_node(&mut self, n: N) -> u32 {
-        let id = self.starting_id;
-        self.identifiers.insert(n, id);
-        self.starting_id += 1;
-        self.nodes.insert(id);
-        self.edges.insert(id, HashSet::new());
-        id
-    }
-
-    fn find_or_add(&mut self, n: N) -> u32 {
-        self.identifiers
-            .get(&n)
-            .copied()
-            .or_else(|| {
-                let id = self.inner_add_node(n);
-                Some(id)
-            })
-            .unwrap()
-    }
-
-    fn reverse_map(&self) -> HashMap<u32, &N> {
-        self.identifiers.iter().map(|(k, v)| (*v, k)).collect()
+    fn find_or_add(&mut self, n: N) -> usize {
+        if let Some(id) = self.identifiers.get_by_obj(&n) {
+            id
+        } else {
+            let id = self.identifiers.insert(n).unwrap();
+            self.nodes.insert(id);
+            self.edges.insert(id, HashSet::new());
+            id
+        }
     }
 }
 
 impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
     fn add_node(&mut self, n: N) {
-        self.inner_add_node(n);
+        self.find_or_add(n);
     }
 
     fn add_edge(&mut self, f: N, t: N) {
@@ -76,7 +64,8 @@ impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
             return;
         }
 
-        let id = self.identifiers.remove(n).unwrap();
+        let id = self.identifiers.get_by_obj(n).unwrap();
+        self.identifiers.remove(id);
         self.nodes.remove(&id);
         if let Some((_, v)) = self.edges.remove_entry(&id) {
             self.edge_count -= v.len();
@@ -97,12 +86,12 @@ impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
             return;
         }
 
-        let fid = self.identifiers.get(f).unwrap();
-        let tid = self.identifiers.get(t).unwrap();
+        let fid = self.identifiers.get_by_obj(f).unwrap();
+        let tid = self.identifiers.get_by_obj(t).unwrap();
         let edges = &mut self.edges;
 
-        let e = edges.get_mut(fid).unwrap();
-        if e.remove(tid) {
+        let e = edges.get_mut(&fid).unwrap();
+        if e.remove(&tid) {
             self.edge_count -= 1;
         }
     }
@@ -116,18 +105,15 @@ impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
     }
 
     fn has_node(&self, n: &N) -> bool {
-        self.identifiers
-            .get(n)
-            .filter(|id| self.nodes.contains(id))
-            .is_some()
+        self.identifiers.contains_obj(n)
     }
 
     fn has_edge(&self, f: &N, t: &N) -> bool {
         self.identifiers
-            .get(f)
+            .get_by_obj(f)
             .filter(|fid| {
                 self.identifiers
-                    .get(t)
+                    .get_by_obj(t)
                     .filter(|tid| self.edges.get(fid).filter(|v| v.contains(tid)).is_some())
                     .is_some()
             })
@@ -135,28 +121,34 @@ impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
     }
 
     fn iter_nodes(&self) -> Box<NodeIterator<N>> {
-        let m = self.reverse_map();
-        Box::new(self.nodes.iter().map(move |v| *m.get(v).unwrap()))
+        Box::new(
+            self.nodes
+                .iter()
+                .map(|v| self.identifiers.get_by_id(*v).unwrap()),
+        )
     }
 
     fn iter_adj(&self, n: &N) -> Option<Box<NodeIterator<N>>> {
-        let m = self.reverse_map();
-
-        fn helper<'a, N>(m: HashMap<u32, &'a N>, v: &'a HashSet<u32>) -> Box<NodeIterator<'a, N>> {
-            Box::new(v.iter().map(move |v| *m.get(v).unwrap()))
+        fn helper<'a, N: Eq + Hash + Debug>(
+            m: &'a DoubleMapping<N>,
+            v: &'a HashSet<usize>,
+        ) -> Box<NodeIterator<'a, N>> {
+            Box::new(v.iter().map(|v| m.get_by_id(*v).unwrap()))
         }
 
-        let id = self.identifiers.get(n).unwrap();
-        let adjacent = self.edges.get(id);
-        adjacent.map(move |v| helper(m, v))
+        let id = self.identifiers.get_by_obj(n).unwrap();
+        let adjacent = self.edges.get(&id);
+        adjacent.map(move |v| helper(&self.identifiers, v))
     }
 
     fn iter_edges(&self) -> Box<EdgeIterator<N>> {
-        let m = self.reverse_map();
-        let v = self.edges.iter().flat_map(move |(k, vs)| {
-            let m = m.clone();
-            vs.iter()
-                .map(move |v| (*m.get(k).unwrap(), *m.get(v).unwrap()))
+        let v = self.edges.iter().flat_map(|(k, vs)| {
+            vs.iter().map(|v| {
+                (
+                    self.identifiers.get_by_id(*k).unwrap(),
+                    self.identifiers.get_by_id(*v).unwrap(),
+                )
+            })
         });
         Box::new(v)
     }
