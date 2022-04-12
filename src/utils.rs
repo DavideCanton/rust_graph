@@ -22,17 +22,13 @@ pub fn dfs<'a, N: Eq + Hash + Debug>(
         inner_dfs(g, &mut visited, &mut cur, to);
     }
 
-    if cur.len() < 2 {
-        None
-    } else {
-        Some(cur)
-    }
+    Some(cur).filter(|cur| cur.len() >= 2)
 }
 
-fn inner_dfs<'a, 'b, 'c, N: Eq + Hash + Debug>(
+fn inner_dfs<'a, N: Eq + Hash + Debug>(
     g: &'a impl Graph<N>,
-    visited: &'b mut HashSet<&'a N>,
-    cur: &'c mut Vec<&'a N>,
+    visited: &mut HashSet<&'a N>,
+    cur: &mut Vec<&'a N>,
     to: &'a N,
 ) -> bool {
     let from = cur.last().unwrap();
@@ -80,7 +76,7 @@ pub fn dijkstra<'a, N: Ord + Debug + Hash>(
     from: &'a N,
     to: &'a N,
 ) -> Option<Vec<&'a N>> {
-    let mut preds: HashMap<&N, (Option<&N>, u32)> = HashMap::with_capacity(g.node_count());
+    let mut preds = HashMap::with_capacity(g.node_count());
     let mut heap = BinaryHeap::with_capacity(g.node_count());
 
     for n in g.iter_nodes() {
@@ -95,13 +91,11 @@ pub fn dijkstra<'a, N: Ord + Debug + Hash>(
         }
         let adjs = g.iter_adj(node).unwrap();
         for adj in adjs {
-            let (_, distu) = preds[node];
-            let (_, dista) = preds[adj];
-            let alt = distu + 1;
-            if alt < dista {
-                let p = preds.get_mut(adj).unwrap();
-                p.0 = Some(node);
-                p.1 = alt;
+            let (_, node_dist) = preds[node];
+            let (_, adj_dist) = preds[adj];
+            let alt = node_dist + 1;
+            if alt < adj_dist {
+                *preds.get_mut(adj).unwrap() = (Some(node), alt);
                 heap.push(NodeWithDist(adj, alt));
             }
         }

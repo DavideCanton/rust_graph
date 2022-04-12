@@ -14,7 +14,7 @@ fn main() {
 
     for i in 1u32..=max {
         let i = i.saturating_sub(3);
-        let i2 = i.saturating_add(3);
+        let i2 = i + 3;
 
         for j in i..=i2 {
             if j >= 1 && j <= max && i != j && i % 3 == j % 3 {

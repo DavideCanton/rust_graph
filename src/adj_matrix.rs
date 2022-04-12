@@ -2,14 +2,15 @@ use crate::graph::{EdgeIterator, Graph, NodeIterator};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
-use std::rc::Rc;
 
 /**
  * Adjacency matrix implementation of [`Graph`].
  */
 pub struct AdjMatrixGraph<N: Hash + Eq + Debug> {
-    nodes: HashSet<Rc<N>>,
-    edges: HashMap<Rc<N>, HashSet<Rc<N>>>,
+    identifiers: HashMap<N, u32>,
+    starting_id: u32,
+    nodes: HashSet<u32>,
+    edges: HashMap<u32, HashSet<u32>>,
     edge_count: usize,
 }
 
@@ -21,27 +22,34 @@ impl<N: Hash + Eq + Debug> AdjMatrixGraph<N> {
         AdjMatrixGraph {
             edges: HashMap::new(),
             nodes: HashSet::new(),
+            identifiers: HashMap::new(),
+            starting_id: 1,
             edge_count: 0,
         }
     }
 
-    fn inner_add_node(&mut self, n: N) -> Rc<N> {
-        let rc = Rc::new(n);
-        self.nodes.insert(Rc::clone(&rc));
-        self.edges.insert(Rc::clone(&rc), HashSet::new());
-        rc
+    fn inner_add_node(&mut self, n: N) -> u32 {
+        let id = self.starting_id;
+        self.identifiers.insert(n, id);
+        self.starting_id += 1;
+        self.nodes.insert(id);
+        self.edges.insert(id, HashSet::new());
+        id
     }
 
-    fn find_or_add(&mut self, n: N) -> Rc<N> {
-        if !self.has_node(&n) {
-            self.inner_add_node(n)
-        } else {
-            Rc::clone(self.nodes.iter().find(|&r| **r == n).unwrap())
-        }
+    fn find_or_add(&mut self, n: N) -> u32 {
+        self.identifiers
+            .get(&n)
+            .copied()
+            .or_else(|| {
+                let id = self.inner_add_node(n);
+                Some(id)
+            })
+            .unwrap()
     }
 
-    fn node_ref(&self, n: &N) -> Option<Rc<N>> {
-        self.nodes.iter().find(|&x| **x == *n).map(Rc::clone)
+    fn reverse_map(&self) -> HashMap<u32, &N> {
+        self.identifiers.iter().map(|(k, v)| (*v, k)).collect()
     }
 }
 
@@ -68,15 +76,16 @@ impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
             return;
         }
 
-        self.nodes.remove(n);
-        if let Some((_, v)) = self.edges.remove_entry(n) {
+        let id = self.identifiers.remove(n).unwrap();
+        self.nodes.remove(&id);
+        if let Some((_, v)) = self.edges.remove_entry(&id) {
             self.edge_count -= v.len();
         }
 
         let e = &mut self.edges;
         let mut to_remove = 0;
         e.iter_mut().for_each(|(_, v)| {
-            if v.remove(n) {
+            if v.remove(&id) {
                 to_remove += 1;
             }
         });
@@ -88,10 +97,12 @@ impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
             return;
         }
 
+        let fid = self.identifiers.get(f).unwrap();
+        let tid = self.identifiers.get(t).unwrap();
         let edges = &mut self.edges;
 
-        let e = edges.get_mut(f).unwrap();
-        if e.remove(t) {
+        let e = edges.get_mut(fid).unwrap();
+        if e.remove(tid) {
             self.edge_count -= 1;
         }
     }
@@ -105,36 +116,49 @@ impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
     }
 
     fn has_node(&self, n: &N) -> bool {
-        self.nodes.iter().any(|r| **r == *n)
+        self.identifiers
+            .get(n)
+            .filter(|id| self.nodes.contains(id))
+            .is_some()
     }
 
     fn has_edge(&self, f: &N, t: &N) -> bool {
-        let e = self.edges.get(f);
-        match e {
-            Some(v) => v.iter().any(|r| **r == *t),
-            None => false,
-        }
+        self.identifiers
+            .get(f)
+            .filter(|fid| {
+                self.identifiers
+                    .get(t)
+                    .filter(|tid| self.edges.get(fid).filter(|v| v.contains(tid)).is_some())
+                    .is_some()
+            })
+            .is_some()
     }
 
     fn iter_nodes(&self) -> Box<NodeIterator<N>> {
-        Box::new(self.nodes.iter().map(|v| v.as_ref()))
+        let m = self.reverse_map();
+        Box::new(self.nodes.iter().map(move |v| *m.get(v).unwrap()))
     }
 
     fn iter_adj(&self, n: &N) -> Option<Box<NodeIterator<N>>> {
-        fn helper<N>(v: &HashSet<Rc<N>>) -> Box<NodeIterator<N>> {
-            Box::new(v.iter().map(|v| v.as_ref()))
+        let m = self.reverse_map();
+
+        fn helper<'a, N>(m: HashMap<u32, &'a N>, v: &'a HashSet<u32>) -> Box<NodeIterator<'a, N>> {
+            Box::new(v.iter().map(move |v| *m.get(v).unwrap()))
         }
 
-        let adjacent = self.edges.get(n);
-        adjacent.map(helper)
+        let id = self.identifiers.get(n).unwrap();
+        let adjacent = self.edges.get(id);
+        adjacent.map(move |v| helper(m, v))
     }
 
     fn iter_edges(&self) -> Box<EdgeIterator<N>> {
-        Box::new(
-            self.edges
-                .iter()
-                .flat_map(|(k, vs)| vs.iter().map(move |v| (k.as_ref(), v.as_ref()))),
-        )
+        let m = self.reverse_map();
+        let v = self.edges.iter().flat_map(move |(k, vs)| {
+            let m = m.clone();
+            vs.iter()
+                .map(move |v| (*m.get(k).unwrap(), *m.get(v).unwrap()))
+        });
+        Box::new(v)
     }
 }
 
@@ -145,43 +169,6 @@ impl<N: Display + Hash + Eq + Debug> Display for AdjMatrixGraph<N> {
         }
         for (x, y) in self.iter_edges() {
             writeln!(f, "{} -> {}", x, y)?;
-        }
-        Ok(())
-    }
-}
-
-impl<N: Debug + Hash + Eq> Debug for AdjMatrixGraph<N> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        for n in self.iter_nodes() {
-            let node_ref = self.node_ref(n).unwrap();
-            writeln!(
-                f,
-                "Node {:?} has {} strong refs, {} weak refs",
-                n,
-                Rc::strong_count(&node_ref),
-                Rc::weak_count(&node_ref)
-            )?;
-        }
-
-        for (key, val) in self.iter_edges() {
-            let kr = self.node_ref(key).unwrap();
-            let vr = self.node_ref(val).unwrap();
-
-            writeln!(
-                f,
-                "Left node {:?} has {} strong refs, {} weak refs",
-                key,
-                Rc::strong_count(&kr),
-                Rc::weak_count(&kr)
-            )?;
-
-            writeln!(
-                f,
-                "Right node {:?} has {} strong refs, {} weak refs",
-                val,
-                Rc::strong_count(&vr),
-                Rc::weak_count(&vr)
-            )?;
         }
         Ok(())
     }
