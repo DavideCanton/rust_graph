@@ -1,7 +1,2 @@
-[package]
-name = "rust-graph"
-version = "0.1.0"
-authors = ["Davide Canton <davide.canton5@gmail.com>"]
-edition = "2021"
-
-[dependencies]
+[workspace]
+members = ["rust_graph_bin", "rust_graph_lib"]

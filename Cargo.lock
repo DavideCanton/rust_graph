@@ -3,5 +3,12 @@
 version = 3
 
 [[package]]
-name = "rust-graph"
+name = "rust_graph_bin"
+version = "0.1.0"
+dependencies = [
+ "rust_graph_lib",
+]
+
+[[package]]
+name = "rust_graph_lib"
 version = "0.1.0"

@@ -1,0 +1,5 @@
+[package]
+name = "rust_graph_lib"
+version = "0.1.0"
+authors = ["Davide Canton <davide.canton5@gmail.com>"]
+edition = "2021"

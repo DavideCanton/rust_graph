@@ -1,10 +1,6 @@
-mod adj_matrix;
-mod graph;
-mod mapping;
-mod utils;
-
-use crate::adj_matrix::AdjMatrixGraph;
-use crate::graph::Graph;
+use rust_graph_lib::adj_matrix::AdjMatrixGraph;
+use rust_graph_lib::graph::Graph;
+use rust_graph_lib::utils;
 
 fn main() {
     let mut g = AdjMatrixGraph::<u32>::new();
