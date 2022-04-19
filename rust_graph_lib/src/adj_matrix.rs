@@ -41,6 +41,12 @@ impl<N: Hash + Eq + Debug> AdjMatrixGraph<N> {
     }
 }
 
+impl<N: Hash + Eq + Debug> Default for AdjMatrixGraph<N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
     fn add_node(&mut self, n: N) {
         self.find_or_add(n);

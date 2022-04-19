@@ -62,6 +62,12 @@ impl<N: Hash + Eq + Debug> DoubleMapping<N> {
     }
 }
 
+impl<N: Hash + Eq + Debug> Default for DoubleMapping<N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod test_mapping {
     use super::*;
