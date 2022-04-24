@@ -1,6 +1,8 @@
-use rust_graph_lib::adj_matrix::AdjMatrixGraph;
-use rust_graph_lib::graph::Graph;
-use rust_graph_lib::utils;
+use rust_graph_lib::{
+    adj_matrix::AdjMatrixGraph,
+    algorithms::{dfs, dijkstra},
+    graph::Graph,
+};
 
 fn main() {
     let mut g = AdjMatrixGraph::<u32>::new();
@@ -25,7 +27,7 @@ fn main() {
     let from = 1;
     let to = max;
 
-    let ps = match utils::dfs(&g, &from, &to) {
+    let ps = match dfs(&g, &from, &to) {
         None => "No path found with DFS".to_string(),
         Some(ps) => ps
             .iter()
@@ -34,7 +36,7 @@ fn main() {
             .join(", "),
     };
 
-    let pd = match utils::dijkstra(&g, &from, &to) {
+    let pd = match dijkstra(&g, &from, &to) {
         None => "No path found with Dijkstra".to_string(),
         Some(pd) => pd
             .iter()

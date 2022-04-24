@@ -1,56 +1,11 @@
+use std::{
+    cmp::Ordering,
+    collections::{BinaryHeap, HashMap},
+    fmt::Debug,
+    hash::Hash,
+};
+
 use crate::graph::Graph;
-use std::cmp::Ordering;
-use std::collections::BinaryHeap;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::fmt::Debug;
-use std::hash::Hash;
-
-/**
- * Depth first search from `from` to `to`.
- */
-pub fn dfs<'a, N: Eq + Hash + Debug>(
-    g: &'a impl Graph<N>,
-    from: &'a N,
-    to: &'a N,
-) -> Option<Vec<&'a N>> {
-    let mut cur = Vec::new();
-
-    if g.has_node(from) && g.has_node(to) {
-        let mut visited = HashSet::new();
-        cur.push(from);
-        inner_dfs(g, &mut visited, &mut cur, to);
-    }
-
-    Some(cur).filter(|cur| cur.len() >= 2)
-}
-
-fn inner_dfs<'a, N: Eq + Hash + Debug>(
-    g: &'a impl Graph<N>,
-    visited: &mut HashSet<&'a N>,
-    cur: &mut Vec<&'a N>,
-    to: &'a N,
-) -> bool {
-    let from = cur.last().unwrap();
-    if *from == to {
-        return true;
-    }
-
-    if let Some(adj) = g.iter_adj(from) {
-        visited.insert(from);
-        for a in adj {
-            if !visited.contains(&a) {
-                cur.push(a);
-                if inner_dfs(g, visited, cur, to) {
-                    return true;
-                }
-                cur.pop();
-            }
-        }
-    }
-
-    false
-}
 
 #[derive(Eq, PartialEq)]
 struct NodeWithDist<N: Eq + Ord>(N, u32);
@@ -121,43 +76,17 @@ pub fn dijkstra<'a, N: Ord + Debug + Hash>(
 
 #[cfg(test)]
 mod tests {
+    use crate::{algorithms::test_utils::slice_equal, build_graph};
+
     use super::*;
-    use crate::adj_matrix::AdjMatrixGraph;
-    use std::borrow::Borrow;
-
-    fn build_graph(n: u32, s: &str) -> impl Graph<u32> {
-        let mut g = AdjMatrixGraph::new();
-
-        fn parse(s: &str) -> u32 {
-            let res = s.parse();
-            res.ok().unwrap()
-        }
-
-        for i in 1..=n {
-            g.add_node(i);
-        }
-
-        for x in s.split('|') {
-            let p = x.split(',').collect::<Vec<_>>();
-            g.add_edge(parse(p[0]), parse(p[1]));
-        }
-
-        g
-    }
-
-    fn slice_equal<T: Eq>(s1: &[impl Borrow<T>], s2: &[impl Borrow<T>]) -> bool {
-        if s1.len() != s2.len() {
-            return false;
-        }
-
-        s1.iter()
-            .zip(s2.iter())
-            .all(|(a, b)| a.borrow() == b.borrow())
-    }
 
     #[test]
     fn works_with_path_present() {
-        let g = build_graph(5, "1,2|2,3|3,4|4,5");
+        let g = build_graph!(
+            1, 2, 3, 4, 5;
+            1 => 2, 2 => 3, 3 => 4, 4 => 5
+        );
+
         let p = dijkstra(&g, &1, &5);
         assert!(p.is_some());
         assert!(slice_equal(&p.unwrap(), &[1, 2, 3, 4, 5]));
@@ -165,7 +94,11 @@ mod tests {
 
     #[test]
     fn gets_shortest_path() {
-        let g = build_graph(5, "1,2|2,3|3,4|4,5|1,3|3,5");
+        let g = build_graph!(
+            1, 2, 3, 4, 5;
+            1 => 2, 2 => 3, 3 => 4, 4 => 5, 1 => 3, 3 => 5
+        );
+
         let p = dijkstra(&g, &1, &5);
         assert!(p.is_some());
         assert!(slice_equal(&p.unwrap(), &[1, 3, 5]));
@@ -173,22 +106,29 @@ mod tests {
 
     #[test]
     fn works_with_path_not_present() {
-        let g = build_graph(5, "1,2|3,4|4,5");
+        let g = build_graph!(
+            1, 2, 3, 4, 5;
+            1 => 2, 3 => 4, 4 => 5
+        );
         let p = dijkstra(&g, &1, &5);
         assert!(p.is_none());
     }
 
     #[test]
     fn works_with_nonexistant_src() {
-        let g = build_graph(5, "1,2|3,4|4,5");
-        let p = dijkstra(&g, &0, &5);
+        let g = build_graph!(
+            1, 2, 3, 4, 5;
+            1 => 2, 3 => 4, 4 => 5
+        );        let p = dijkstra(&g, &0, &5);
         assert!(p.is_none());
     }
 
     #[test]
     fn works_with_nonexistant_dst() {
-        let g = build_graph(5, "1,2|3,4|4,5");
-        let p = dijkstra(&g, &1, &6);
+        let g = build_graph!(
+            1, 2, 3, 4, 5;
+            1 => 2, 3 => 4, 4 => 5
+        );        let p = dijkstra(&g, &1, &6);
         assert!(p.is_none());
     }
 }
