@@ -1,9 +1,9 @@
 use std::rc::Rc;
 
 use rust_graph_lib::{
-    adj_list::AdjListGraph,
     algorithms::{Algorithm, Dfs, Dijkstra},
     graph::Graph,
+    impls::adj_list::AdjListGraph,
 };
 
 fn main() {

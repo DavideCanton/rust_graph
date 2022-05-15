@@ -4,7 +4,7 @@ macro_rules! build_graph {
         $( $n:expr ),*;
         $( $f:expr => $t: expr ),*
     ) => {{
-        use $crate::adj_list::AdjListGraph;
+        use $crate::impls::adj_list::AdjListGraph;
         use $crate::graph::Graph;
 
         let mut graph = AdjListGraph::new();
