@@ -1,4 +1,4 @@
-pub mod adj_matrix;
+pub mod adj_list;
 pub mod algorithms;
 pub mod graph;
 pub mod mapping;

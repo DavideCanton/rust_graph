@@ -7,23 +7,21 @@ use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 
 /**
- * Adjacency matrix implementation of [`Graph`].
+ * Adjacency list implementation of [`Graph`].
  */
-pub struct AdjMatrixGraph<N: Hash + Eq + Debug> {
+pub struct AdjListGraph<N: Hash + Eq + Debug> {
     identifiers: DoubleMapping<N>,
-    nodes: HashSet<usize>,
     edges: HashMap<usize, HashSet<usize>>,
     edge_count: usize,
 }
 
-impl<N: Hash + Eq + Debug> AdjMatrixGraph<N> {
+impl<N: Hash + Eq + Debug> AdjListGraph<N> {
     /**
      * Creates a new graph.
      */
     pub fn new() -> Self {
-        AdjMatrixGraph {
+        AdjListGraph {
             edges: HashMap::new(),
-            nodes: HashSet::new(),
             identifiers: DoubleMapping::new(),
             edge_count: 0,
         }
@@ -34,20 +32,19 @@ impl<N: Hash + Eq + Debug> AdjMatrixGraph<N> {
             id
         } else {
             let id = self.identifiers.insert(n).unwrap();
-            self.nodes.insert(id);
             self.edges.insert(id, HashSet::new());
             id
         }
     }
 }
 
-impl<N: Hash + Eq + Debug> Default for AdjMatrixGraph<N> {
+impl<N: Hash + Eq + Debug> Default for AdjListGraph<N> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
+impl<N: Hash + Eq + Debug> Graph<N> for AdjListGraph<N> {
     fn add_node(&mut self, n: N) {
         self.find_or_add(n);
     }
@@ -72,7 +69,6 @@ impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
 
         let id = self.identifiers.get_by_obj(n).unwrap();
         self.identifiers.remove(id);
-        self.nodes.remove(&id);
         if let Some((_, v)) = self.edges.remove_entry(&id) {
             self.edge_count -= v.len();
         }
@@ -103,7 +99,7 @@ impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
     }
 
     fn node_count(&self) -> usize {
-        self.nodes.len()
+        self.edges.len()
     }
 
     fn edge_count(&self) -> usize {
@@ -128,9 +124,9 @@ impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
 
     fn iter_nodes(&self) -> Box<NodeIterator<N>> {
         Box::new(
-            self.nodes
-                .iter()
-                .map(|v| self.identifiers.get_by_id(*v).unwrap()),
+            self.edges
+                .keys()
+                .map(|&v| self.identifiers.get_by_id(v).unwrap()),
         )
     }
 
@@ -160,7 +156,7 @@ impl<N: Hash + Eq + Debug> Graph<N> for AdjMatrixGraph<N> {
     }
 }
 
-impl<N: Display + Hash + Eq + Debug> Display for AdjMatrixGraph<N> {
+impl<N: Display + Hash + Eq + Debug> Display for AdjListGraph<N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         for n in self.iter_nodes() {
             writeln!(f, "Node {}", n)?;
@@ -178,7 +174,7 @@ mod tests {
 
     #[test]
     fn test_add_node() {
-        let mut g = AdjMatrixGraph::new();
+        let mut g = AdjListGraph::new();
         assert_eq!(g.node_count(), 0);
         g.add_node(1);
         assert_eq!(g.node_count(), 1);
@@ -187,7 +183,7 @@ mod tests {
 
     #[test]
     fn test_remove_node_no_edges() {
-        let mut g = AdjMatrixGraph::new();
+        let mut g = AdjListGraph::new();
         g.add_node(1);
         g.add_node(2);
         g.add_node(3);
@@ -202,7 +198,7 @@ mod tests {
 
     #[test]
     fn test_remove_node_with_edges() {
-        let mut g = AdjMatrixGraph::new();
+        let mut g = AdjListGraph::new();
         g.add_edge(1, 2);
         g.add_edge(2, 3);
         g.add_edge(3, 1);

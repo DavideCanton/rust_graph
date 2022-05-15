@@ -4,10 +4,10 @@ macro_rules! build_graph {
         $( $n:expr ),*;
         $( $f:expr => $t: expr ),*
     ) => {{
-        use $crate::adj_matrix::AdjMatrixGraph;
+        use $crate::adj_list::AdjListGraph;
         use $crate::graph::Graph;
 
-        let mut graph = AdjMatrixGraph::new();
+        let mut graph = AdjListGraph::new();
 
         $(
             graph.add_node($n);

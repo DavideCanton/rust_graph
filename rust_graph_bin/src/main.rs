@@ -1,13 +1,13 @@
 use std::rc::Rc;
 
 use rust_graph_lib::{
-    adj_matrix::AdjMatrixGraph,
+    adj_list::AdjListGraph,
     algorithms::{Algorithm, Dfs, Dijkstra},
     graph::Graph,
 };
 
 fn main() {
-    let mut g = AdjMatrixGraph::<u32>::new();
+    let mut g = AdjListGraph::<u32>::new();
     let max = 10;
 
     for i in 1u32..=max {
