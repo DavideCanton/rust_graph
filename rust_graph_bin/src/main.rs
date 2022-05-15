@@ -1,6 +1,8 @@
+use std::rc::Rc;
+
 use rust_graph_lib::{
     adj_matrix::AdjMatrixGraph,
-    algorithms::{dfs, dijkstra},
+    algorithms::{Algorithm, Dfs, Dijkstra},
     graph::Graph,
 };
 
@@ -19,6 +21,8 @@ fn main() {
         }
     }
 
+    let g = Rc::new(g);
+
     println!("Created graph!");
     println!("Node count: {}", g.node_count());
     println!("Edge count: {}", g.edge_count());
@@ -27,22 +31,28 @@ fn main() {
     let from = 1;
     let to = max;
 
-    let ps = match dfs(&g, &from, &to) {
-        None => "No path found with DFS".to_string(),
-        Some(ps) => ps
-            .iter()
-            .map(|&p| p.to_string())
-            .collect::<Vec<_>>()
-            .join(", "),
+    let ps = {
+        let dfs = Dfs::new(g.as_ref());
+        match dfs.run(&from, &to) {
+            None => "No path found with DFS".to_string(),
+            Some(ps) => ps
+                .iter()
+                .map(|&p| p.to_string())
+                .collect::<Vec<_>>()
+                .join(", "),
+        }
     };
 
-    let pd = match dijkstra(&g, &from, &to) {
-        None => "No path found with Dijkstra".to_string(),
-        Some(pd) => pd
-            .iter()
-            .map(|&p| p.to_string())
-            .collect::<Vec<_>>()
-            .join(", "),
+    let pd = {
+        let dijkstra = Dijkstra::new(g.as_ref());
+        match dijkstra.run(&from, &to) {
+            None => "No path found with Dijkstra".to_string(),
+            Some(pd) => pd
+                .iter()
+                .map(|&p| p.to_string())
+                .collect::<Vec<_>>()
+                .join(", "),
+        }
     };
 
     println!("Paths from {} to {}", from, to);
