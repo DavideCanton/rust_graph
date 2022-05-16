@@ -22,7 +22,7 @@ impl<N: Hash + Eq + Debug> AdjListGraph<N> {
     pub fn new() -> Self {
         AdjListGraph {
             edges: HashMap::new(),
-            identifiers: DoubleMapping::new(),
+            identifiers: DoubleMapping::new(false),
             edge_count: 0,
         }
     }
