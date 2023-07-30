@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{collections::HashMap, rc::Rc};
 
 use rust_graph_lib::{
     algorithms::{Algorithm, Dfs, Dijkstra},
@@ -7,8 +7,9 @@ use rust_graph_lib::{
 };
 
 fn main() {
-    let mut g = AdjListGraph::<u32>::new();
+    let mut g = AdjListGraph::new();
     let max = 10;
+    let mut indexes = HashMap::new();
 
     for i in 1u32..=max {
         let i = i.saturating_sub(3);
@@ -16,7 +17,9 @@ fn main() {
 
         for j in i..=i2 {
             if j >= 1 && j <= max && i != j && i % 3 == j % 3 {
-                g.add_edge(i, j);
+                let idi = *indexes.entry(i).or_insert_with(|| g.add_node());
+                let idj = *indexes.entry(j).or_insert_with(|| g.add_node());
+                g.add_edge(idi, idj);
             }
         }
     }
@@ -28,12 +31,12 @@ fn main() {
     println!("Edge count: {}", g.edge_count());
     println!("{}", g);
 
-    let from = 1;
-    let to = max;
+    let from = *indexes.get(&1).unwrap();
+    let to = *indexes.get(&max).unwrap();
 
     let ps = {
         let dfs = Dfs::new(g.as_ref());
-        match dfs.run(&from, &to) {
+        match dfs.run(from, to) {
             None => "No path found with DFS".to_string(),
             Some(ps) => ps
                 .iter()
@@ -45,7 +48,7 @@ fn main() {
 
     let pd = {
         let dijkstra = Dijkstra::new(g.as_ref());
-        match dijkstra.run(&from, &to) {
+        match dijkstra.run(from, to) {
             None => "No path found with Dijkstra".to_string(),
             Some(pd) => pd
                 .iter()

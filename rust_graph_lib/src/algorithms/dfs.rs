@@ -1,34 +1,36 @@
 use crate::graph::Graph;
-use std::{collections::HashSet, fmt::Debug, hash::Hash, iter, marker::PhantomData};
+use std::{collections::HashSet, hash::Hash, iter};
 
 use super::Algorithm;
 
-pub struct Dfs<'a, N: Eq + Debug, G: Graph<N>> {
+pub struct Dfs<'a, G: Graph> {
     graph: &'a G,
-    _ph: PhantomData<N>,
 }
 
-impl<'a, N: Eq + Debug + Hash, G: Graph<N>> Dfs<'a, N, G> {
+// TODO remove copy
+impl<'a, I: Hash + Eq + Copy, G: Graph<Index = I>> Dfs<'a, G> {
     pub fn new(graph: &'a G) -> Self {
-        Self {
-            graph,
-            _ph: PhantomData,
-        }
+        Self { graph }
     }
 
-    fn inner_dfs(&'a self, visited: &mut HashSet<&'a N>, cur: &mut Vec<&'a N>, to: &'a N) -> bool {
+    fn inner_dfs(
+        &'a self,
+        visited: &mut HashSet<G::Index>,
+        cur: &mut Vec<G::Index>,
+        to: G::Index,
+    ) -> bool {
         let from = cur.last().unwrap();
         if *from == to {
             return true;
         }
 
-        visited.insert(from);
+        visited.insert(*from);
 
         self.graph
-            .iter_adj(from)
+            .iter_adj(*from)
             .unwrap_or_else(|| Box::new(iter::empty()))
             .any(|a| {
-                if !visited.contains(a) {
+                if !visited.contains(&a) {
                     cur.push(a);
                     if self.inner_dfs(visited, cur, to) {
                         return true;
@@ -40,15 +42,13 @@ impl<'a, N: Eq + Debug + Hash, G: Graph<N>> Dfs<'a, N, G> {
     }
 }
 
-impl<'a, N: Eq + Debug + Ord + Hash, G: 'a + Graph<N>> Algorithm<'a, N> for Dfs<'a, N, G> {
-    fn run(&'a self, from: &'a N, to: &'a N) -> Option<Vec<&'a N>> {
+impl<'a, I: Hash + Eq + Copy, G: Graph<Index = I>> Algorithm<G> for Dfs<'a, G> {
+    fn run(&self, from: G::Index, to: G::Index) -> Option<Vec<G::Index>> {
         let mut cur = Vec::new();
 
-        if self.graph.has_node(from) && self.graph.has_node(to) {
-            let mut visited = HashSet::new();
-            cur.push(from);
-            self.inner_dfs(&mut visited, &mut cur, to);
-        }
+        let mut visited = HashSet::new();
+        cur.push(from);
+        self.inner_dfs(&mut visited, &mut cur, to);
 
         Some(cur).filter(|cur| cur.len() >= 2)
     }
@@ -56,55 +56,52 @@ impl<'a, N: Eq + Debug + Ord + Hash, G: 'a + Graph<N>> Algorithm<'a, N> for Dfs<
 
 #[cfg(test)]
 mod tests {
-    use crate::{algorithms::test_utils::slice_equal, build_graph};
+    use crate::{algorithms::test_utils::slice_equal, graph::Graph, impls::adj_list::AdjListGraph};
 
-    use super::*;
+    use super::{Algorithm, Dfs};
+    use std::hash::Hash;
 
-    fn dfs<'a, G: Graph<i32>>(g: &'a G, from: i32, to: i32) -> Option<Vec<i32>> {
-        Dfs::new(g)
-            .run(&from, &to)
-            .map(|v| v.into_iter().copied().collect())
+    fn dfs<I: Hash + Eq + Copy, G: Graph<Index = I>>(
+        g: &G,
+        from: G::Index,
+        to: G::Index,
+    ) -> Option<Vec<G::Index>> {
+        Dfs::new(g).run(from, to)
     }
 
     #[test]
     fn works_with_path_present() {
-        let g = build_graph!(
-            1, 2, 3, 4, 5;
-            1 => 2, 2 => 3, 3 => 4, 4 => 5
-        );
+        let mut g = AdjListGraph::new();
+        let id1 = g.add_node();
+        let id2 = g.add_node();
+        let id3 = g.add_node();
+        let id4 = g.add_node();
+        let id5 = g.add_node();
 
-        let p = dfs(&g, 1, 5);
+        g.add_edge(id1, id2);
+        g.add_edge(id2, id3);
+        g.add_edge(id3, id4);
+        g.add_edge(id4, id5);
+
+        let p = dfs(&g, id1, id5);
         assert!(p.is_some());
-        assert!(slice_equal(&p.unwrap(), &[1, 2, 3, 4, 5]));
+        assert!(slice_equal(&p.unwrap(), &[id1, id2, id3, id4, id5]));
     }
 
     #[test]
     fn works_with_path_not_present() {
-        let g = build_graph!(
-            1, 2, 3, 4, 5;
-            1 => 2, 3 => 4, 4 => 5
-        );
-        let p = dfs(&g, 1, 5);
-        assert!(p.is_none());
-    }
+        let mut g = AdjListGraph::new();
+        let id1 = g.add_node();
+        let id2 = g.add_node();
+        let id3 = g.add_node();
+        let id4 = g.add_node();
+        let id5 = g.add_node();
 
-    #[test]
-    fn works_with_nonexistant_src() {
-        let g = build_graph!(
-            1, 2, 3, 4, 5;
-            1 => 2, 3 => 4, 4 => 5
-        );
-        let p = dfs(&g, 0, 5);
-        assert!(p.is_none());
-    }
+        g.add_edge(id1, id2);
+        g.add_edge(id3, id4);
+        g.add_edge(id4, id5);
 
-    #[test]
-    fn works_with_nonexistant_dst() {
-        let g = build_graph!(
-            1, 2, 3, 4, 5;
-            1 => 2, 3 => 4, 4 => 5
-        );
-        let p = dfs(&g, 1, 6);
+        let p = dfs(&g, id1, id5);
         assert!(p.is_none());
     }
 }
